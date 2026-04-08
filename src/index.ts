@@ -169,12 +169,66 @@ server.tool(
 );
 
 server.tool(
+  "create_order",
+  "Create an order in Tripletex (use invoice_order to convert it to an invoice)",
+  {
+    customerId: z.number().describe("Customer ID"),
+    orderDate: z.string().describe("Order date YYYY-MM-DD"),
+    deliveryDate: z.string().describe("Delivery date YYYY-MM-DD"),
+    lines: z
+      .array(
+        z.object({
+          description: z.string(),
+          quantity: z.number(),
+          unitPriceExclVat: z.number(),
+          vatTypeId: z.number().optional(),
+        })
+      )
+      .describe("Order line items"),
+    ourReference: z.string().optional(),
+  },
+  async ({ customerId, orderDate, deliveryDate, lines, ourReference }) => {
+    const body: Record<string, unknown> = {
+      customer: { id: customerId },
+      orderDate,
+      deliveryDate,
+      orderLines: lines.map((l) => ({
+        description: l.description,
+        count: l.quantity,
+        unitPriceExclVat: l.unitPriceExclVat,
+        ...(l.vatTypeId ? { vatType: { id: l.vatTypeId } } : {}),
+      })),
+    };
+    if (ourReference) body.ourContact = { id: ourReference };
+    const data = await client.post("/order", body);
+    return { content: [{ type: "text" as const, text: formatResult(data) }] };
+  }
+);
+
+server.tool(
+  "invoice_order",
+  "Convert an order to an invoice. Due date is auto-calculated from customer payment terms.",
+  {
+    orderId: z.number().describe("Order ID to convert to invoice"),
+    invoiceDate: z.string().describe("Invoice date YYYY-MM-DD"),
+    sendToCustomer: z.boolean().optional().describe("Send invoice to customer (default false)"),
+  },
+  async ({ orderId, invoiceDate, sendToCustomer }) => {
+    const params: Record<string, string> = {
+      invoiceDate,
+      sendToCustomer: (sendToCustomer ?? false).toString(),
+    };
+    const data = await client.put(`/order/${orderId}/:invoice`, {}, params);
+    return { content: [{ type: "text" as const, text: formatResult(data) }] };
+  }
+);
+
+server.tool(
   "create_invoice",
-  "Create a new outgoing invoice",
+  "Create an invoice from an order in one step. Creates the order then converts it to an invoice. Due date is auto-calculated from customer payment terms.",
   {
     customerId: z.number().describe("Customer ID"),
     invoiceDate: z.string().describe("Invoice date YYYY-MM-DD"),
-    dueDate: z.string().describe("Due date YYYY-MM-DD"),
     lines: z
       .array(
         z.object({
@@ -186,23 +240,35 @@ server.tool(
       )
       .describe("Invoice line items"),
     ourReference: z.string().optional(),
+    sendToCustomer: z.boolean().optional().describe("Send invoice to customer (default false)"),
   },
-  async ({ customerId, invoiceDate, dueDate, lines, ourReference }) => {
-    const body: Record<string, unknown> = {
+  async ({ customerId, invoiceDate, lines, ourReference, sendToCustomer }) => {
+    // Step 1: Create order
+    const orderBody: Record<string, unknown> = {
       customer: { id: customerId },
-      invoiceDate,
-      dueDate,
-      orders: [],
-      lines: lines.map((l) => ({
+      orderDate: invoiceDate,
+      deliveryDate: invoiceDate,
+      orderLines: lines.map((l) => ({
         description: l.description,
-        quantity: l.quantity,
+        count: l.quantity,
         unitPriceExclVat: l.unitPriceExclVat,
         ...(l.vatTypeId ? { vatType: { id: l.vatTypeId } } : {}),
       })),
     };
-    if (ourReference) body.ourReference = ourReference;
-    const data = await client.post("/invoice", body);
-    return { content: [{ type: "text" as const, text: formatResult(data) }] };
+    if (ourReference) orderBody.ourContact = { id: ourReference };
+    const orderResult = await client.post("/order", orderBody) as { value?: { id?: number } };
+    const orderId = orderResult?.value?.id;
+    if (!orderId) {
+      return { content: [{ type: "text" as const, text: "Error: Failed to create order — no ID returned.\n" + formatResult(orderResult) }] };
+    }
+
+    // Step 2: Convert order to invoice
+    const params: Record<string, string> = {
+      invoiceDate,
+      sendToCustomer: (sendToCustomer ?? false).toString(),
+    };
+    const invoiceResult = await client.put(`/order/${orderId}/:invoice`, {}, params);
+    return { content: [{ type: "text" as const, text: formatResult(invoiceResult) }] };
   }
 );
 
