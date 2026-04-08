@@ -11,6 +11,17 @@ interface SessionToken {
   expiresAt: string;
 }
 
+export class TripletexApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly bodyText: string
+  ) {
+    super(message);
+    this.name = "TripletexApiError";
+  }
+}
+
 export class TripletexClient {
   private consumerToken: string;
   private employeeToken: string;
@@ -32,8 +43,6 @@ export class TripletexClient {
   }
 
   private async createSession(): Promise<void> {
-    // Session tokens expire at midnight CET on the expiration date.
-    // We create one valid until tomorrow.
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const expDate = tomorrow.toISOString().split("T")[0];
@@ -43,9 +52,13 @@ export class TripletexClient {
     const res = await fetch(url, { method: "PUT" });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Session create failed (${res.status}): ${text}`);
+      throw new TripletexApiError(
+        `Session create failed (${res.status})`,
+        res.status,
+        text
+      );
     }
-    const data = await res.json();
+    const data = (await res.json()) as { value: { token: string } };
     this.session = {
       token: data.value.token,
       expiresAt: expDate,
@@ -68,7 +81,8 @@ export class TripletexClient {
     method: string,
     path: string,
     params?: Record<string, string>,
-    body?: unknown
+    body?: unknown,
+    isRetry = false
   ): Promise<unknown> {
     const token = await this.ensureSession();
     const url = new URL(`${this.baseUrl}${path}`);
@@ -89,11 +103,27 @@ export class TripletexClient {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Tripletex ${method} ${path} (${res.status}): ${text}`);
+    if (res.status === 401 && !isRetry) {
+      this.session = null;
+      return this.request(method, path, params, body, true);
     }
-    return res.json();
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      throw new TripletexApiError(
+        `Tripletex ${method} ${path} (${res.status})`,
+        res.status,
+        text
+      );
+    }
+
+    if (!text) return {};
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      return text;
+    }
   }
 
   async get(path: string, params?: Record<string, string>) {
