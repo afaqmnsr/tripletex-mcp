@@ -5,7 +5,7 @@ export const createDepartmentsSkill: SkillDefinition = {
   title: "Opprett avdeling",
   description: "Guide for creating departments for organizational structure and cost allocation",
   triggers: ["avdeling", "department", "ny avdeling", "opprett avdeling", "kostnadssted"],
-  requiredTools: ["search_accounts"],
+  requiredTools: ["create_department"],
   buildMessages: () => [
     {
       role: "assistant" as const,
@@ -36,7 +36,7 @@ Common department structures for Norwegian SMBs:
 - 50 Kundeservice / Support
 
 **Step 2 — Create the department**
-POST to /department with:
+Call \`create_department\` with:
 - name (required) — department name
 - departmentNumber (recommended) — unique number
 - departmentManagerId (optional) — employee ID of the manager
