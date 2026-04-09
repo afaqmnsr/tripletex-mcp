@@ -707,6 +707,78 @@ server.tool(
     })
 );
 
+server.tool(
+  "create_employee",
+  "Create a new employee. Requires department. Start date goes on /employee/employment, not here.",
+  {
+    firstName: z.string(),
+    lastName: z.string(),
+    departmentId: z.number().describe("Department ID"),
+    userType: z.string().optional().describe("e.g. STANDARD (default)"),
+    email: z.string().optional(),
+    phoneNumberMobile: z.string().optional(),
+    dateOfBirth: z.string().optional().describe("YYYY-MM-DD"),
+  },
+  async (args) =>
+    run(() => {
+      const body: Record<string, unknown> = {
+        firstName: args.firstName,
+        lastName: args.lastName,
+        department: { id: args.departmentId },
+        userType: args.userType ?? "STANDARD",
+      };
+      if (args.email !== undefined) body.email = args.email;
+      if (args.phoneNumberMobile !== undefined)
+        body.phoneNumberMobile = args.phoneNumberMobile;
+      if (args.dateOfBirth !== undefined) body.dateOfBirth = args.dateOfBirth;
+      return client.post("/employee", body);
+    })
+);
+
+server.tool(
+  "create_project",
+  "Create a new project for time tracking and invoicing.",
+  {
+    name: z.string().describe("Project name"),
+    number: z.string().optional().describe("Project number"),
+    projectManagerId: z.number().optional().describe("Employee ID of project manager"),
+    customerId: z.number().optional().describe("Customer ID to link"),
+    startDate: z.string().optional().describe("YYYY-MM-DD"),
+    endDate: z.string().optional().describe("YYYY-MM-DD"),
+  },
+  async (args) =>
+    run(() => {
+      const body: Record<string, unknown> = { name: args.name };
+      if (args.number !== undefined) body.number = args.number;
+      if (args.projectManagerId !== undefined)
+        body.projectManager = { id: args.projectManagerId };
+      if (args.customerId !== undefined)
+        body.customer = { id: args.customerId };
+      if (args.startDate !== undefined) body.startDate = args.startDate;
+      if (args.endDate !== undefined) body.endDate = args.endDate;
+      return client.post("/project", body);
+    })
+);
+
+server.tool(
+  "create_department",
+  "Create a new department (avdeling/kostnadssted).",
+  {
+    name: z.string().describe("Department name"),
+    departmentNumber: z.string().optional().describe("Unique department number"),
+    departmentManagerId: z.number().optional().describe("Employee ID of department manager"),
+  },
+  async (args) =>
+    run(() => {
+      const body: Record<string, unknown> = { name: args.name };
+      if (args.departmentNumber !== undefined)
+        body.departmentNumber = args.departmentNumber;
+      if (args.departmentManagerId !== undefined)
+        body.departmentManager = { id: args.departmentManagerId };
+      return client.post("/department", body);
+    })
+);
+
 // ===========================================================================
 // UTILITY
 // ===========================================================================

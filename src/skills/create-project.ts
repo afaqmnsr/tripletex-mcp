@@ -5,7 +5,7 @@ export const createProjectSkill: SkillDefinition = {
   title: "Opprett prosjekt",
   description: "Guide for creating projects for time tracking and project-based invoicing",
   triggers: ["prosjekt", "project", "nytt prosjekt", "opprett prosjekt"],
-  requiredTools: ["search_projects", "search_customers"],
+  requiredTools: ["search_projects", "search_customers", "create_project"],
   buildMessages: () => [
     {
       role: "assistant" as const,
@@ -47,7 +47,8 @@ Recommended:
 - isClosed: false (default)
 
 **Step 4 — Create the project**
-POST to /project with the gathered data.
+Call \`create_project\` with the gathered data:
+- name (required), number, projectManagerId, customerId, startDate, endDate
 
 **Step 5 — Set up activities (if needed)**
 Projects use activities for categorizing time entries (e.g., "Utvikling", "Møter", "Prosjektledelse").

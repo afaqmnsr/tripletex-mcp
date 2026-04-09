@@ -5,7 +5,7 @@ export const createEmployeeSkill: SkillDefinition = {
   title: "Opprett ansatt",
   description: "Guide for onboarding an employee in Tripletex with Norwegian employment requirements",
   triggers: ["ansatt", "employee", "ny ansatt", "opprett ansatt", "onboarding", "ansette"],
-  requiredTools: ["search_employees"],
+  requiredTools: ["search_employees", "create_employee"],
   buildMessages: () => [
     {
       role: "assistant" as const,
@@ -49,8 +49,9 @@ Recommended:
 - nationalIdentityNumber (fødselsnummer, 11 digits — sensitive data)
 
 **Step 4 — Create the employee**
-POST to /employee with the gathered data.
-Note: This is a direct API call — the create_employee tool would need to be added, or use the raw API if available.
+Call \`create_employee\` with the gathered data:
+- firstName, lastName, departmentId, userType (default "STANDARD")
+- Optional: email, phoneNumberMobile, dateOfBirth
 
 **Step 5 — Create employment record**
 POST to /employee/employment with:
