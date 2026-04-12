@@ -17,7 +17,7 @@ import { registerSkills } from "./skills/registry.js";
 const client = new TripletexClient();
 const server = new McpServer({
   name: "tripletex",
-  version: "2.0.0",
+  version: "2.1.0",
 });
 
 // ---------------------------------------------------------------------------
@@ -556,8 +556,124 @@ server.tool(
 );
 
 // ===========================================================================
-// BALANCE SHEET
+// BANK & LEDGER POSTINGS
 // ===========================================================================
+
+const postingTypeEnum = z.enum([
+  "INCOMING_PAYMENT",
+  "INCOMING_PAYMENT_OPPOSITE",
+  "INCOMING_INVOICE_CUSTOMER_POSTING",
+  "INVOICE_EXPENSE",
+  "OUTGOING_INVOICE_CUSTOMER_POSTING",
+  "WAGE",
+]);
+
+server.tool(
+  "search_ledger_postings",
+  "Search ledger postings (GET /ledger/posting). Required date range; filter by ledger account, customer, supplier, project, etc. Use this to trace activity on specific accounts or tie lines to vouchers.",
+  {
+    dateFrom: z.string().describe("YYYY-MM-DD (required by Tripletex)"),
+    dateTo: z.string().describe("YYYY-MM-DD (required by Tripletex)"),
+    accountId: z.number().optional(),
+    supplierId: z.number().optional(),
+    customerId: z.number().optional(),
+    employeeId: z.number().optional(),
+    departmentId: z.number().optional(),
+    projectId: z.number().optional(),
+    productId: z.number().optional(),
+    accountNumberFrom: z.number().optional(),
+    accountNumberTo: z.number().optional(),
+    accountingDimensionValue1Id: z.number().optional(),
+    accountingDimensionValue2Id: z.number().optional(),
+    accountingDimensionValue3Id: z.number().optional(),
+    type: postingTypeEnum.optional(),
+    openPostings: z.string().optional(),
+    fields: z.string().optional(),
+    sorting: z.string().optional(),
+    from: z.number().optional(),
+    count: z.number().optional(),
+  },
+  async (args) =>
+    run(() => {
+      const params = optionalParams({
+        dateFrom: args.dateFrom,
+        dateTo: args.dateTo,
+        accountId: args.accountId,
+        supplierId: args.supplierId,
+        customerId: args.customerId,
+        employeeId: args.employeeId,
+        departmentId: args.departmentId,
+        projectId: args.projectId,
+        productId: args.productId,
+        accountNumberFrom: args.accountNumberFrom,
+        accountNumberTo: args.accountNumberTo,
+        accountingDimensionValue1Id: args.accountingDimensionValue1Id,
+        accountingDimensionValue2Id: args.accountingDimensionValue2Id,
+        accountingDimensionValue3Id: args.accountingDimensionValue3Id,
+        type: args.type,
+        openPostings: args.openPostings,
+        fields: args.fields,
+        sorting: args.sorting,
+        from: args.from,
+        count: args.count ?? 1000,
+      });
+      return client.get("/ledger/posting", params);
+    })
+);
+
+server.tool(
+  "search_bank_reconciliations",
+  "Search bank reconciliations (GET /bank/reconciliation). Optional filters id, accountingPeriodId, accountId (Tripletex query params are strings).",
+  {
+    id: z.string().optional(),
+    accountingPeriodId: z.string().optional(),
+    accountId: z.string().optional(),
+    fields: z.string().optional(),
+    sorting: z.string().optional(),
+    from: z.number().optional(),
+    count: z.number().optional(),
+  },
+  async (args) =>
+    run(() => {
+      const params = optionalParams({
+        id: args.id,
+        accountingPeriodId: args.accountingPeriodId,
+        accountId: args.accountId,
+        fields: args.fields,
+        sorting: args.sorting,
+        from: args.from,
+        count: args.count ?? 1000,
+      });
+      return client.get("/bank/reconciliation", params);
+    })
+);
+
+// ===========================================================================
+// BALANCE SHEET & REPORTS
+// ===========================================================================
+
+server.tool(
+  "get_income_statement",
+  "Company result / result budget for a calendar year (Tripletex GET /resultbudget/company). For arbitrary date ranges or account-level detail, use search_ledger_postings.",
+  {
+    year: z.number().describe("Calendar year, e.g. 2025"),
+    fields: z.string().optional(),
+    sorting: z.string().optional(),
+    from: z.number().optional(),
+    count: z.number().optional(),
+  },
+  async (args) =>
+    run(() => {
+      const params = optionalParams({
+        year: args.year,
+        fields: args.fields,
+        sorting: args.sorting,
+        from: args.from,
+        count: args.count ?? 1000,
+      });
+      return client.get("/resultbudget/company", params);
+    })
+);
 
 server.tool(
   "get_balance_sheet",

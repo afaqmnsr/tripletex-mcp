@@ -33,6 +33,10 @@ Kontakt meg på carl@cwv.no.
 | | `search_vouchers` | Søk bilag |
 | | `get_voucher` | Hent bilag |
 | | `create_voucher` | Opprett bilag (`amountGross` per linje) |
+| | `search_ledger_postings` | Søk hovedboksposteringer (konto, periode, kunde, prosjekt, …) |
+| | `search_bank_reconciliations` | Søk bankavstemminger |
+| | `get_income_statement` | Resultat/resultatbudsjett selskap per **år** (`/resultbudget/company`) |
+| | `get_balance_sheet` | Saldobalanse for periode |
 | **Utility** | `whoami` | Info om innlogget bruker/selskap |
 | | `search_employees` | Søk ansatte |
 
