@@ -1,6 +1,9 @@
 # Tripletex MCP Server
 
 En open source [MCP-server](https://modelcontextprotocol.io/) som lar AI-assistenter (Claude, Cursor, osv.) jobbe direkte mot Tripletex sitt regnskapssystem.
+Se hvordan du installerer repo og kobler på under.
+
+**Foretrekker du en ferdigkonfigurert MCP-løsning?** Prøv: [Regnskapsagent.no](https://regnskapsagent.no/)
 
 Bygd og vedlikeholdt av [CWV Ventures AS](https://cwv.no).
 
