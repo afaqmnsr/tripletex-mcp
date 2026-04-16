@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 export interface SkillDefinition {
   id: string;
   title: string;

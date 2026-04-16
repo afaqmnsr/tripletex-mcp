@@ -5,7 +5,7 @@ export const balanceCheckSkill: SkillDefinition = {
   title: "Saldobalanse / kontooversikt",
   description: "Guide for reviewing balance sheet and account balances for a period",
   triggers: ["saldobalanse", "balance sheet", "kontooversikt", "regnskap oversikt", "balanse", "periode avslutning"],
-  requiredTools: ["get_balance_sheet", "search_accounts"],
+  requiredTools: ["get_balance_sheet", "search_accounts", "search_ledger_postings"],
   buildMessages: () => [
     {
       role: "assistant" as const,
@@ -78,9 +78,9 @@ Organize by account class:
 
 ### For Deeper Analysis
 If the user wants to drill into specific accounts:
-- Call \`search_accounts\` to find account details
-- Call \`search_vouchers\` to see individual transactions on that account
-- Call \`get_voucher\` to see posting details
+- Call \`search_accounts\` to find the account ID
+- Call \`search_ledger_postings\` with the accountId to see all postings on that account (also supports filtering by supplierId, customerId, employeeId, departmentId, projectId, productId)
+- Call \`get_voucher\` to see full voucher details for a specific posting
 
 ### Validation Checklist
 - [ ] Period dates are correct and make accounting sense

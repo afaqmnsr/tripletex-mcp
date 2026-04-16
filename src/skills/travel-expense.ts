@@ -2,109 +2,94 @@ import { SkillDefinition } from "./types.js";
 
 export const travelExpenseSkill: SkillDefinition = {
   id: "travel-expense",
-  title: "Reiseregning",
-  description: "Guide for registering travel expenses with Norwegian per diem and mileage rules",
-  triggers: ["reiseregning", "travel expense", "diett", "per diem", "reise", "kjøregodtgjørelse", "mileage"],
-  requiredTools: ["search_employees", "search_accounts", "create_voucher"],
+  title: "Reiseregning & Kjøregodtgjørelse",
+  description: "Guide for registering travel expenses and mileage allowances via Tripletex native endpoints",
+  triggers: ["reiseregning", "travel expense", "diett", "per diem", "reise", "kjøregodtgjørelse", "mileage", "kjøring", "bilgodtgjørelse"],
+  requiredTools: ["create_travel_expense", "create_mileage_allowance", "search_mileage_rate_categories", "search_travel_expenses", "deliver_travel_expense", "create_travel_expense_cost"],
   buildMessages: () => [
     {
       role: "assistant" as const,
       content: {
         type: "text" as const,
-        text: `## Skill: Reiseregning (Travel Expense)
+        text: `## Skill: Reiseregning & Kjøregodtgjørelse (Travel Expense & Mileage Allowance)
 
-### Norwegian Travel Expense Rules (Statens satser 2026)
-Norwegian tax-free allowances for business travel (diett/kostgodtgjørelse):
-
-**Per diem (diett) — domestic travel:**
-- Over 6 hours: NOK 200 (dagsats)
-- Over 12 hours: NOK 400
-- Overnight (24+ hours): NOK 607 per day
-- Rates are reduced if meals are provided by employer/client
-
-**Per diem — international travel:**
-- Varies by country, published annually by Skatteetaten
-
+### Norwegian Mileage & Travel Rules
 **Mileage allowance (kjøregodtgjørelse):**
-- Private car used for business: NOK 3.50 per km
+- Private car used for business: rate determined by Tripletex rate categories (personbil, elbil, etc.)
 - Tax-free up to Skatteetaten limits
+- Passengers and toll costs can be added as supplements
 
-**Night allowance (nattillegg):**
-- When not provided accommodation: NOK 435 per night
+**Per diem (diett) — out of scope for this flow, use manual voucher posting**
 
-### Key Accounts
-- 7100 Bilkostnader / kjøregodtgjørelse (mileage)
-- 7130 Reisekostnader (travel costs)
-- 7140 Diettkostnader (per diem)
-- 7150 Hotellkostnader (accommodation, if not per diem)
-- 2920 Reiseforskudd (travel advance, if applicable)
-- 1920 Bank (reimbursement payment)
+### Steps — Simple Mileage Registration
 
-### Steps
+**Step 1 — Identify the employee**
+Call \`whoami\` to get the current user's employee ID, or \`search_employees\` if registering for someone else.
 
-**Step 1 — Gather travel details**
-Ask the user:
-- Who traveled? (employee name/ID)
-- Destination (domestic/international)
-- Departure date and time
-- Return date and time
-- Purpose of travel
-- Transportation method (own car, public transit, flight)
-- Accommodation (hotel, private, provided by host)
-- Meals provided by others?
+**Step 2 — Look up rate categories**
+Call \`search_mileage_rate_categories\` to find the correct rate category for the vehicle type:
+- Search by name, e.g. "personbil", "elbil", "firmabil"
+- Note the category ID for use in step 4
 
-**Step 2 — Calculate allowances**
+**Step 3 — Create the travel expense report**
+Call \`create_travel_expense\` with:
+- employeeId: from step 1
+- title: descriptive name, e.g. "Kjøring april 2026" or "Reise Oslo-Drammen 14. april"
+- projectId/departmentId: if the trip is linked to a project or department
 
-For per diem:
-- Count hours of travel to determine rate
-- Reduce for meals provided (breakfast: -20%, lunch: -30%, dinner: -50%)
+This creates a draft report (isCompleted=false). The report is a container for mileage entries and costs.
 
-For mileage:
-- Total km driven × NOK 3.50/km
-- Note: keep a driving log (kjørebok) for documentation
+**Step 4 — Add mileage entries**
+Call \`create_mileage_allowance\` for each drive:
+- travelExpenseId: the ID from step 3
+- date: date of driving (YYYY-MM-DD)
+- departureLocation: e.g. "Oslo"
+- destination: e.g. "Drammen"
+- km: kilometers driven
+- rateCategoryId: from step 2
+- isCompanyCar: true if using firmabil (no payout)
+- tollCost: bompenger amount if applicable
+- passengerSupplement: passasjertillegg if applicable
 
-For actual expenses:
-- Sum receipts for hotel, transport, etc.
-- These are reimbursed at actual cost (not per diem)
+Tripletex auto-calculates the amount based on km × rate.
 
-**Step 3 — Look up account IDs**
-Call \`search_accounts\` for the relevant cost accounts (7100, 7130, 7140).
-Call \`search_employees\` to verify the employee.
+For round trips, create two entries (outbound + return) or one entry with total km.
 
-**Step 4 — Post the voucher**
-Call \`create_voucher\` with:
-- date: travel completion date or reimbursement date
-- description: "Reiseregning - [employee name] - [destination] [dates]"
+**Step 5 — Add extra costs (optional)**
+If there are additional costs like parking or tolls not covered by mileage:
+1. Call \`search_travel_expense_cost_categories\` to find the cost category (e.g. "parkering", "bompenger")
+2. Call \`search_travel_expense_payment_types\` to find the payment type (e.g. "Privat utlegg")
+3. Call \`create_travel_expense_cost\` with travelExpenseId, date, costCategoryId, paymentTypeId, amount, comment
 
-Example: 2-day domestic trip, own car 300 km, per diem with hotel:
-| Account | Amount | Description |
-|---------|--------|-------------|
-| 7140 Diett | +1,214 | Per diem 2 days × 607 |
-| 7100 Kjøregodtgjørelse | +1,050 | 300 km × 3.50 |
-| 7150 Hotell | +1,200 | 1 night hotel |
-| 1920 Bank | -3,464 | Reimbursement to employee |
+**Step 6 — Report to user**
+Summarize: total km, rate per km, total mileage amount, any extra costs, grand total.
+Ask if the user wants to deliver the report for approval.
 
-**Step 5 — Confirm**
-Show the travel expense breakdown and total reimbursement amount.
+**Step 7 — Deliver for approval (optional)**
+Call \`deliver_travel_expense\` with the travel expense ID.
+This changes the state from OPEN to DELIVERED.
 
-### Tax Implications
-- Per diem within Skatteetaten rates: tax-free for the employee
-- Amounts above rates: taxable as income (must be reported on A-melding)
-- Mileage within rates: tax-free
-- Actual expense reimbursements: tax-free (receipts required)
+### Multiple Drives in One Report
+For users who drive frequently, create one travel expense report per period (week/month) and add multiple mileage entries to it.
 
-### Documentation Requirements
-- Travel expenses must have supporting documentation (receipts, travel log)
-- Per diem requires: dates, times, destination, purpose
-- Mileage requires: date, from/to, km driven, purpose
+### Searching Existing Reports
+- \`search_travel_expenses\` — find reports by employee, date range, state
+- \`search_mileage_allowances\` — find specific mileage entries by route or date
+- \`get_travel_expense\` — get full details including all mileage and cost rows
+
+### Common Vehicle Types
+Always use \`search_mileage_rate_categories\` to get the actual ID — never hardcode. Common categories:
+- Personbil (private car)
+- Elbil (electric car)
+- Firmabil (company car — no payout)
 
 ### Validation Checklist
-- [ ] Travel dates and purpose documented
-- [ ] Per diem rates match current Statens satser
-- [ ] Mileage calculated correctly
-- [ ] Meal reductions applied where applicable
-- [ ] Voucher postings balance to 0
-- [ ] Employee identified correctly`,
+- [ ] Employee ID verified via whoami or search_employees
+- [ ] Rate category looked up (never hardcode rate IDs)
+- [ ] Travel expense created as draft (isCompleted=false)
+- [ ] Each drive has date, departure, destination, and km
+- [ ] Toll and parking costs added separately if applicable
+- [ ] Summary shown to user before delivering`,
       },
     },
   ],

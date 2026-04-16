@@ -9,35 +9,65 @@ Kontakt meg på carl@cwv.no.
 
 ## Hva kan den gjøre?
 
+**56 MCP-verktøy** (per **v2.4.0**, synket med [Regnskapsagent](https://regnskapsagent.no)-MCP).
+
 | Kategori | Verktøy | Beskrivelse |
 |---|---|---|
-| **Timeføring** | `search_projects` | Søk etter prosjekter |
-| | `search_activities` | Søk etter aktiviteter |
-| | `search_time_entries` | Hent timeoppføringer for en periode |
-| | `create_time_entry` | Logg timer (krever `employeeId` + prosjekt/aktivitet) |
-| **Faktura** | `create_order` | Opprett ordre med Tripletex-felt (`orderLines`, `count`, priser) |
-| | `invoice_order` | Fakturer eksisterende ordre |
+| **Ordrer & utgående faktura** | `search_orders` | Søk ordrer (åpne/lukkede, abonnement m.m.) |
+| | `get_order` | Hent én ordre |
+| | `create_order` | Opprett ordre |
+| | `invoice_order` | Fakturer ordre |
 | | `create_invoice` | Ordre + faktura i ett steg |
-| | `search_invoices` | Søk utgående fakturaer (påkrevd datointervall) |
-| | `get_invoice` | Hent én faktura (valgfri `fields`) |
-| | `search_supplier_invoices` | Søk leverandørfakturaer (påkrevd datointervall) |
+| | `search_invoices` | Søk utgående fakturaer (datointervall) |
+| | `get_invoice` | Hent én faktura |
+| **Leverandørfaktura** | `search_supplier_invoices` | Søk registrerte leverandørfakturaer |
+| | `get_supplier_invoice` | Hent én leverandørfaktura |
+| | `get_supplier_invoices_for_approval` | Liste til godkjenning |
+| | `approve_supplier_invoice` | Godkjenn |
+| | `reject_supplier_invoice` | Avvis |
+| | `update_supplier_invoice_postings` | Oppdater posteringer på leverandørbilag |
+| | `create_supplier_invoice` | Opprett leverandørbilag til bilagsmottak (`POST /ledger/voucher`, m.fl.) |
 | **Kunder & leverandører** | `search_customers` | Søk kunder |
 | | `create_customer` | Opprett kunde |
 | | `update_customer` | Oppdater kunde |
 | | `search_suppliers` | Søk leverandører |
 | | `create_supplier` | Opprett leverandør |
+| | `get_supplier` | Hent leverandør |
+| | `update_supplier` | Oppdater leverandør |
 | **Produkter** | `search_products` | Søk produkter |
 | | `create_product` | Opprett produkt |
-| **Regnskap** | `search_accounts` | Søk i kontoplan |
-| | `search_vat_types` | Liste MVA-typer |
+| **Prosjekt & time** | `search_projects` | Søk prosjekter |
+| | `search_activities` | Søk aktiviteter |
+| | `search_time_entries` | Søk timeføringer |
+| | `create_time_entry` | Logg timer |
+| | `create_project` | Opprett prosjekt |
+| | `create_department` | Opprett avdeling |
+| **HR** | `create_employee` | Opprett ansatt |
+| **Bilag & hovedbok** | `search_accounts` | Søk kontoplan |
+| | `search_vat_types` | MVA-typer |
+| | `search_voucher_types` | Bilagstyper |
 | | `search_vouchers` | Søk bilag |
 | | `get_voucher` | Hent bilag |
-| | `create_voucher` | Opprett bilag (`amountGross` per linje) |
-| | `search_ledger_postings` | Søk hovedboksposteringer (konto, periode, kunde, prosjekt, …) |
-| | `search_bank_reconciliations` | Søk bankavstemminger |
-| | `get_income_statement` | Resultat/resultatbudsjett selskap per **år** (`/resultbudget/company`) |
-| | `get_balance_sheet` | Saldobalanse for periode |
-| **Utility** | `whoami` | Info om innlogget bruker/selskap |
+| | `create_voucher` | Opprett bilag |
+| | `send_voucher_to_ledger` | Send bilag til bokføring |
+| | `attach_voucher_document` | Vedlegg dokument (Base64) til bilag |
+| | `import_ledger_voucher_document` | Importer bilag fra fil |
+| | `get_voucher_inbox_count` | Antall i bilagsmottak |
+| | `search_ledger_postings` | Søk hovedboksposteringer |
+| **Rapporter** | `get_balance_sheet` | Saldobalanse for periode |
+| **Reise & kjøregodtgjørelse** | `search_travel_expenses` | Søk reiseregninger |
+| | `get_travel_expense` | Hent reiseregning |
+| | `create_travel_expense` | Opprett reiseregning |
+| | `create_mileage_allowance` | Kjøregodtgjørelse |
+| | `search_mileage_allowances` | Søk kjøregodtgjørelser |
+| | `search_mileage_rates` | km-satser |
+| | `search_mileage_rate_categories` | Satskategorier |
+| | `deliver_travel_expense` | Lever til godkjenning |
+| | `approve_travel_expense` | Godkjenn |
+| | `create_travel_expense_cost` | Kostnad (parkering, bom, …) |
+| | `search_travel_expense_cost_categories` | Kostnadskategorier |
+| | `search_travel_expense_payment_types` | Betalingstyper |
+| **Utility** | `whoami` | Sesjon / selskap |
 | | `search_employees` | Søk ansatte |
 
 ## Kom i gang
@@ -120,12 +150,22 @@ Claude oppretter kunden direkte i Tripletex.
 
 Claude søker bilag med datofilter og viser en oversikt.
 
+> "Registrer kjøring fra Oslo til Drammen i dag, 42 km, personbil"
+
+Claude slår opp satskategori for personbil, oppretter en reiseregning, legger til kjøregodtgjørelse med riktig sats, og rapporterer totalbeløp.
+
+> "Jeg kjørte til Ski i dag, 48 km. Hadde 85 kr i bompenger og 120 kr parkering"
+
+Claude oppretter reiseregning med kjøregodtgjørelse pluss kostnadsrader for bompenger og parkering.
+
 ## Teknisk
 
 - **Produktspesifikasjon (rebuild):** [docs/PRD-Tripletex-MCP-Rebuild.md](docs/PRD-Tripletex-MCP-Rebuild.md) beskriver mål-API, verktøy og felter mot Tripletex v2.
+- **Verktøy:** `src/tripletex-tools.ts` — alle `server.tool(...)`-registreringer (delt oppsett med Regnskapsagent; der brukes `registerAllTools(server, client)`).
+- **MCP skills (prompts):** `src/skills/` — regnskapsflyter som MCP prompts + ressursen `tripletex://skills`.
 - **Runtime:** Node.js 18+
 - **Språk:** TypeScript
-- **Avhengigheter:** Kun `@modelcontextprotocol/sdk`
+- **Avhengigheter:** `@modelcontextprotocol/sdk`, `zod`
 - **Transport:** stdio (standard MCP-protokoll)
 - **API:** Tripletex REST API v2
 

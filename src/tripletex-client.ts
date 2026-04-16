@@ -1,6 +1,9 @@
 /**
  * Tripletex API Client
  * Handles authentication and HTTP requests to the Tripletex REST API.
+ *
+ * Standalone MCP: pass no constructor args — reads TRIPLETEX_* env vars.
+ * Programmatic use: pass TripletexClientOptions (matches multi-tenant host apps).
  */
 
 const PROD_BASE = "https://tripletex.no/v2";
@@ -9,6 +12,12 @@ const TEST_BASE = "https://api-test.tripletex.tech/v2";
 interface SessionToken {
   token: string;
   expiresAt: string;
+}
+
+export interface TripletexClientOptions {
+  consumerToken: string;
+  employeeToken: string;
+  baseUrl?: string;
 }
 
 export class TripletexApiError extends Error {
@@ -28,7 +37,13 @@ export class TripletexClient {
   private baseUrl: string;
   private session: SessionToken | null = null;
 
-  constructor() {
+  constructor(options?: TripletexClientOptions) {
+    if (options) {
+      this.consumerToken = options.consumerToken;
+      this.employeeToken = options.employeeToken;
+      this.baseUrl = options.baseUrl ?? PROD_BASE;
+      return;
+    }
     const consumer = process.env.TRIPLETEX_CONSUMER_TOKEN;
     const employee = process.env.TRIPLETEX_EMPLOYEE_TOKEN;
     if (!consumer || !employee) {
@@ -140,5 +155,64 @@ export class TripletexClient {
 
   async delete(path: string, params?: Record<string, string>) {
     return this.request("DELETE", path, params);
+  }
+
+  /**
+   * POST multipart/form-data (e.g. voucher import or attachment). Does not set Content-Type;
+   * fetch sets the boundary automatically.
+   */
+  async postMultipart(
+    path: string,
+    formData: FormData,
+    params?: Record<string, string>
+  ): Promise<unknown> {
+    return this.multipartRequest("POST", path, params, formData, false);
+  }
+
+  private async multipartRequest(
+    method: "POST",
+    path: string,
+    params: Record<string, string> | undefined,
+    formData: FormData,
+    isRetry: boolean
+  ): Promise<unknown> {
+    const token = await this.ensureSession();
+    const url = new URL(`${this.baseUrl}${path}`);
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+      }
+    }
+
+    const res = await fetch(url.toString(), {
+      method,
+      headers: {
+        Authorization: this.authHeader(token),
+        Accept: "application/json",
+      },
+      body: formData,
+    });
+
+    if (res.status === 401 && !isRetry) {
+      this.session = null;
+      return this.multipartRequest(method, path, params, formData, true);
+    }
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      throw new TripletexApiError(
+        `Tripletex ${method} ${path} (${res.status})`,
+        res.status,
+        text
+      );
+    }
+
+    if (!text) return {};
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      return text;
+    }
   }
 }

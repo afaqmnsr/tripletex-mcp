@@ -1,6 +1,6 @@
 {
   "name": "tripletex-mcp",
-  "version": "2.1.0",
+  "version": "2.4.0",
   "description": "MCP server for Tripletex accounting API",
   "type": "module",
   "main": "dist/index.js",
